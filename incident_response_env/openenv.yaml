@@ -1,0 +1,14 @@
+name: incident_response_env
+version: "1.0.0"
+description: >
+  On-call incident response triage environment. An AI agent receives system
+  alerts and must diagnose root causes by querying logs, metrics, and service
+  dependencies, then apply corrective actions. Features 3 tasks ranging from
+  a simple crashed service to an intermittent multi-replica failure.
+author: meta-llica
+tags:
+  - openenv
+  - devops
+  - incident-response
+  - sre
+  - real-world

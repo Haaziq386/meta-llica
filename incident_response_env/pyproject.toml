@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "incident_response_env"
+version = "1.0.0"
+description = "OpenEnv incident response triage environment for on-call SRE simulation"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "meta-llica" }]
+dependencies = [
+  "fastapi>=0.104.0",
+  "uvicorn[standard]>=0.24.0",
+  "pydantic>=2.0.0",
+  "openai>=1.0.0",
+  "httpx>=0.25.0",
+  "python-dotenv>=1.0.0",
+  "openenv-core>=0.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=4.1.0",
+  "ruff>=0.6.0",
+  "black>=24.0.0",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests", "tests.*"]
