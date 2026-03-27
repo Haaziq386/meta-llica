@@ -146,7 +146,9 @@ curl http://localhost:7860/health
 Set API key for live mode:
 
 ```bash
-export OPENAI_API_KEY="your_key_here"
+export GOOGLE_API_KEY="your_key_here"
+export GEMINI_MODEL="gemini-2.0-flash"  # optional override
+export INCIDENT_LLM_REQUEST_DELAY_SECONDS="1.5"  # optional throttling
 python -m baseline.inference
 ```
 

@@ -39,7 +39,7 @@ class BaselineRequest(BaseModel):
     )
     model: str | None = Field(
         default=None,
-        description="OpenAI model name override for baseline execution.",
+        description="Gemini model name override for baseline execution.",
     )
     timeout_seconds: float = Field(
         default=30.0,

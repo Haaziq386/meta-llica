@@ -93,6 +93,6 @@ docker run --rm -p 7860:7860 incident-env
 - /grader fails with "episode not complete":
   - Continue stepping until observation.done is true.
 - /baseline returns fallback mode:
-  - Set OPENAI_API_KEY for live inference.
+  - Set GOOGLE_API_KEY for live inference.
 - Invalid target errors:
   - Check /tasks action schema and scenario service names.
