@@ -143,12 +143,14 @@ curl http://localhost:7860/health
 
 ## Baseline Inference
 
-Set API key for live mode:
+Use an env file for live mode configuration:
 
 ```bash
-export GROQ_API_KEY="your_key_here"
-export GROQ_MODEL="llama-3.1-8b-instant"  # optional override
-export INCIDENT_LLM_REQUEST_DELAY_SECONDS="5"  # optional throttling
+cp .env.example .env
+# edit .env with your values
+set -a
+source .env
+set +a
 python -m baseline.inference
 ```
 
