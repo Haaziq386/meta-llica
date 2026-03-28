@@ -117,8 +117,20 @@ def tasks() -> dict[str, Any]:
 
 
 @app.post("/reset", response_model=IncidentObservation)
-def reset(payload: ResetRequest) -> IncidentObservation:
-    """Reset environment to a selected task."""
+def reset(
+    payload: ResetRequest | None = None,
+    task_id: str | None = None,
+) -> IncidentObservation:
+    """
+    Reset environment to a selected task.
+    Accept either JSON body or query param and tolerate missing payload.
+    """
+    if payload is None:
+        if task_id:
+            payload = ResetRequest(task_id=task_id)
+        else:
+            # default for hackathon check flow
+            payload = ResetRequest(task_id="easy_crashed_service")
 
     try:
         return environment.reset(task_id=payload.task_id)
