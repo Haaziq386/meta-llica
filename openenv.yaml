@@ -12,3 +12,16 @@ tags:
   - incident-response
   - sre
   - real-world
+entry_point: inference.py
+env_vars:
+  - HF_TOKEN
+  - MODEL_NAME
+  - API_BASE_URL
+runtime:
+  max_minutes: 20
+  cpu: 2
+  memory_gb: 8
+tasks:
+  - easy_crashed_service
+  - medium_cascading_failure
+  - hard_intermittent_ghost

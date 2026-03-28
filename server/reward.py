@@ -199,6 +199,7 @@ def compute_step_reward(
     result: str,
     existing_clues: Iterable[str],
     scenario: Scenario,
+    actions_taken: list[str] | None = None,
 ) -> tuple[float, list[str]]:
     """Compute shaped reward for one environment step.
 
@@ -212,6 +213,7 @@ def compute_step_reward(
     - Diagnosis bonus
     - Time pressure penalty
     - Escalation shaping
+    - Repetition penalty
     """
 
     reward = 0.0
@@ -240,5 +242,19 @@ def compute_step_reward(
     # 6) Escalation shaping.
     if action.command == "escalate":
         reward += 0.05 if scenario.should_escalate else -0.05
+
+    # 7) Repetition penalty: discourage no-op loops on the same (command, target).
+    if actions_taken:
+        current_key = f"{action.command} {action.target}"
+        repeat_count = 0
+        for entry in actions_taken:
+            # Entry format: "N. command target" (may have extra words for invalid actions)
+            parts = entry.split(". ", 1)
+            if len(parts) == 2:
+                tokens = parts[1].split()
+                if len(tokens) >= 2 and f"{tokens[0]} {tokens[1]}" == current_key:
+                    repeat_count += 1
+        if repeat_count >= 1:
+            reward -= 0.05 * repeat_count
 
     return (reward, new_clues)

@@ -253,6 +253,7 @@ class IncidentEnvironment(OpenEnvEnvironment):
             result=action_result,
             existing_clues=self._state.clues_discovered,
             scenario=scenario,
+            actions_taken=self._runtime.actions_taken[:-1],  # exclude current step
         )
         if new_clues:
             self._state.clues_discovered.extend(new_clues)

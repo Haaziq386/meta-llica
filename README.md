@@ -159,7 +159,7 @@ cp .env.example .env
 set -a
 source .env
 set +a
-python -m baseline.inference
+python inference.py
 ```
 
 Without a key, baseline returns deterministic fallback demo scores.
