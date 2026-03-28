@@ -124,7 +124,7 @@ uvicorn server.app:app --host 0.0.0.0 --port 7860
 ### Run Tests
 
 ```bash
-pytest
+python -m pytest
 ```
 
 ## Docker
@@ -146,9 +146,9 @@ curl http://localhost:7860/health
 Set API key for live mode:
 
 ```bash
-export GOOGLE_API_KEY="your_key_here"
-export GEMINI_MODEL="gemini-2.0-flash"  # optional override
-export INCIDENT_LLM_REQUEST_DELAY_SECONDS="1.5"  # optional throttling
+export GROQ_API_KEY="your_key_here"
+export GROQ_MODEL="llama-3.1-8b-instant"  # optional override
+export INCIDENT_LLM_REQUEST_DELAY_SECONDS="5"  # optional throttling
 python -m baseline.inference
 ```
 

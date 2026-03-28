@@ -39,7 +39,7 @@ class BaselineRequest(BaseModel):
     )
     model: str | None = Field(
         default=None,
-        description="Gemini model name override for baseline execution.",
+        description="Groq model name override for baseline execution.",
     )
     timeout_seconds: float = Field(
         default=30.0,

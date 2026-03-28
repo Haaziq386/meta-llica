@@ -2,7 +2,7 @@
 
 This module evaluates all tasks by driving the environment with an LLM policy.
 It supports two modes:
-1) Real mode: calls Gemini when GOOGLE_API_KEY is configured.
+1) Real mode: calls Groq when GROQ_API_KEY is configured.
 2) Fallback mode: returns deterministic demo scores when no key is present.
 
 Run locally:
@@ -18,15 +18,15 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-import google.generativeai as genai
 import httpx
+from groq import Groq
 
 from models import IncidentAction
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ENV_URL = "http://localhost:7860"
-DEFAULT_MODEL = "gemini-3-flash-preview"
+DEFAULT_MODEL = "llama-3.1-8b-instant"
 TASK_IDS = [
     "easy_crashed_service",
     "medium_cascading_failure",
@@ -53,7 +53,7 @@ class BaselineConfig:
     model: str = DEFAULT_MODEL
     timeout_seconds: float = 30.0
     max_retries: int = 2
-    request_delay_seconds: float = 15.0
+    request_delay_seconds: float = 5.0
     log_level: str = "INFO"
 
 
@@ -151,13 +151,13 @@ def _heuristic_action(observation: dict[str, Any], task_id: str) -> IncidentActi
 
 
 def _llm_action(
-    client: genai.GenerativeModel,
+    client: Groq,
     config: BaselineConfig,
     observation: dict[str, Any],
     task_id: str,
     step_number: int,
 ) -> IncidentAction:
-    """Query Gemini for next action and parse into IncidentAction."""
+    """Query Groq for next action and parse into IncidentAction."""
 
     user_prompt = (
         "Task: "
@@ -171,21 +171,22 @@ def _llm_action(
     for attempt in range(config.max_retries + 1):
         try:
             logger.info(
-                "[task=%s step=%s] calling Gemini model=%s attempt=%s",
+                "[task=%s step=%s] calling Groq model=%s attempt=%s",
                 task_id,
                 step_number,
                 config.model,
                 attempt + 1,
             )
-            completion = client.generate_content(
-                user_prompt,
-                generation_config=genai.GenerationConfig(
-                    temperature=0.1,
-                    response_mime_type="application/json",
-                ),
-                request_options={"timeout": config.timeout_seconds},
+            completion = client.chat.completions.create(
+                model=config.model,
+                temperature=0.1,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                timeout=config.timeout_seconds,
             )
-            raw = completion.text or "{}"
+            raw = (completion.choices[0].message.content or "{}") if completion.choices else "{}"
             payload = _safe_json_loads(raw)
             action = IncidentAction.model_validate(payload)
             logger.info(
@@ -204,7 +205,7 @@ def _llm_action(
                 # Apply stronger backoff for provider throttling responses.
                 sleep_seconds = max(2.0, sleep_seconds)
             logger.warning(
-                "[task=%s step=%s] Gemini attempt failed attempt=%s error=%s backoff=%.2fs",
+                "[task=%s step=%s] Groq attempt failed attempt=%s error=%s backoff=%.2fs",
                 task_id,
                 step_number,
                 attempt + 1,
@@ -213,14 +214,14 @@ def _llm_action(
             )
             time.sleep(sleep_seconds)
 
-    raise RuntimeError(f"Failed to obtain valid action from Gemini: {last_error}")
+    raise RuntimeError(f"Failed to obtain valid action from Groq: {last_error}")
 
 
 def _run_one_task(
     http: httpx.Client,
     task_id: str,
     config: BaselineConfig,
-    client: genai.GenerativeModel | None,
+    client: Groq | None,
 ) -> dict[str, Any]:
     """Run baseline policy for one task through the HTTP environment API."""
 
@@ -313,7 +314,7 @@ def run_baseline(
 
     config = BaselineConfig(
         env_url=env_url or os.getenv("INCIDENT_ENV_URL", DEFAULT_ENV_URL),
-        model=model or os.getenv("GEMINI_MODEL", DEFAULT_MODEL),
+        model=model or os.getenv("GROQ_MODEL", DEFAULT_MODEL),
         timeout_seconds=timeout_seconds,
         request_delay_seconds=float(
             os.getenv("INCIDENT_LLM_REQUEST_DELAY_SECONDS", "1.0")
@@ -333,12 +334,12 @@ def run_baseline(
         config.request_delay_seconds,
     )
 
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        logger.warning("GOOGLE_API_KEY missing, returning deterministic fallback scores")
+        logger.warning("GROQ_API_KEY missing, returning deterministic fallback scores")
         return {
             "mode": "fallback",
-            "note": "GOOGLE_API_KEY missing. Returning deterministic reference scores.",
+            "note": "GROQ_API_KEY missing. Returning deterministic reference scores.",
             "scores": [
                 {
                     "task_id": "easy_crashed_service",
@@ -361,12 +362,8 @@ def run_baseline(
             ],
         }
 
-    genai.configure(api_key=api_key)
-    llm_client = genai.GenerativeModel(
-        model_name=config.model,
-        system_instruction=SYSTEM_PROMPT,
-    )
-    logger.info("GOOGLE_API_KEY detected, live Gemini mode enabled")
+    llm_client = Groq(api_key=api_key)
+    logger.info("GROQ_API_KEY detected, live Groq mode enabled")
     results: list[dict[str, Any]] = []
     with httpx.Client(base_url=config.env_url, timeout=config.timeout_seconds) as http:
         for task_id in TASK_IDS:
