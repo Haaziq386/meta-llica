@@ -1,3 +1,11 @@
+---
+title: Incident Response Environment
+emoji: 🚨
+colorFrom: blue
+colorTo: red
+sdk: docker
+---
+
 # IncidentEnv: On-Call Incident Response Triage Environment
 
 IncidentEnv simulates the real workflow of an on-call SRE responding to production alerts. An agent receives an alert, investigates logs and metrics, follows service dependencies, applies fixes, and submits a diagnosis. The environment is deterministic and multi-step, making it suitable for both reinforcement learning and benchmark-style evaluation.

@@ -1,0 +1,17 @@
+name: Sync to Hugging Face Space
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Push to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add hf-space https://atul-k-6o:$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@huggingface.co/spaces/atul-k-6o/incident-response-env.git
+          git push --force hf-space main
