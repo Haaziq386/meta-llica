@@ -198,10 +198,18 @@ def _build_user_prompt(observation: dict[str, Any], task_id: str) -> str:
 
 
 def _is_repeated_action(action: IncidentAction, actions_taken: list[str]) -> bool:
-    """Return True if this exact (command, target) was used in the last 2 steps."""
+    """Return True if this action represents a stuck loop (4+ consecutive identical actions).
+    
+    This allows LLM to explore and even revisit services, but prevents infinite loops.
+    """
     key = f"{action.command} {action.target}"
-    recent = actions_taken[-2:] if len(actions_taken) >= 2 else actions_taken
-    return any(key in entry for entry in recent)
+    
+    # Check last 4 actions — if ALL are identical to current, it's a stuck loop
+    recent = actions_taken[-4:] if len(actions_taken) >= 4 else actions_taken
+    if len(recent) >= 4 and all(key in entry for entry in recent):
+        return True
+    
+    return False
 
 
 def _llm_action(
@@ -243,11 +251,11 @@ def _llm_action(
             payload = _safe_json_loads(raw)
             action = IncidentAction.model_validate(payload)
 
-            # Repetition guard: if LLM repeats a recent (command, target), use heuristic.
+            # Repetition guard: if LLM is stuck in a loop (4+ consecutive identical), use heuristic.
             actions_taken = observation.get("actions_taken", [])
             if _is_repeated_action(action, actions_taken):
                 logger.warning(
-                    "[task=%s step=%s] LLM repeated action command=%s target=%s, switching to heuristic",
+                    "[task=%s step=%s] LLM stuck in loop (4+ repeats) command=%s target=%s, switching to heuristic",
                     task_id,
                     step_number,
                     action.command,

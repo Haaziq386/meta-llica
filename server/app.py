@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from baseline.inference import run_baseline
+from inference import run_baseline
 from models import IncidentAction, IncidentObservation, IncidentState
 from scenarios import SCENARIOS
 from server.environment import IncidentEnvironment
@@ -201,3 +201,15 @@ def baseline(payload: BaselineRequest | None = None) -> dict[str, Any]:
             status_code=500,
             detail=f"Baseline execution failed: {exc}",
         ) from exc
+
+
+def main() -> None:
+    """Server entry point required for OpenEnv multi-mode deployment."""
+    import uvicorn
+
+    uvicorn.run(
+        "server.app:app",
+        host="0.0.0.0",
+        port=7860,
+        reload=False,
+    )

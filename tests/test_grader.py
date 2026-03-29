@@ -93,3 +93,89 @@ def test_grader_is_deterministic() -> None:
     score_b, breakdown_b = grade_episode(state, scenario)
     assert score_a == score_b
     assert breakdown_a == breakdown_b
+
+
+def test_gradual_fix_scoring_perfect() -> None:
+    """Test that perfect fix gets full credit."""
+    scenario = SCENARIOS["easy_crashed_service"]
+    state = IncidentState(
+        task_id=scenario.task_id,
+        step_count=5,
+        diagnosis_submitted=True,
+        diagnosis=scenario.root_cause,
+        fix_applied=True,
+        correct_fix=True,
+        fix_quality=1.0,  # Perfect fix
+        clues_discovered=list(scenario.key_clues),
+        collateral_damage=False,
+    )
+    score, breakdown = grade_episode(state, scenario)
+    assert breakdown["fix_applied"] == 0.3  # Full credit
+    assert score == 1.0
+
+
+def test_gradual_fix_scoring_partial() -> None:
+    """Test that reasonable but suboptimal fix gets partial credit."""
+    scenario = SCENARIOS["medium_cascading_failure"]
+    state = IncidentState(
+        task_id=scenario.task_id,
+        step_count=10,
+        diagnosis_submitted=True,
+        diagnosis="cache memory exhaustion",
+        fix_applied=True,
+        correct_fix=False,  # Wrong fix
+        fix_quality=0.5,  # But reasonable alternative (e.g., restart instead of scale)
+        clues_discovered=["api_gateway_high_latency", "cache_redis_high_memory"],
+        collateral_damage=False,
+    )
+    score, breakdown = grade_episode(state, scenario)
+    # Should get 0.15 for fix (0.3 * 0.5)
+    assert breakdown["fix_applied"] == 0.15
+    # Perfect diagnosis (0.4) + partial fix (0.15) + efficiency + collateral = > 0.5
+    assert score > 0.5
+    assert score < 1.0
+
+
+def test_independent_diagnosis_scoring() -> None:
+    """Test that diagnosis is scored independently of fix."""
+    scenario = SCENARIOS["easy_crashed_service"]
+    # Perfect diagnosis but no fix
+    state = IncidentState(
+        task_id=scenario.task_id,
+        step_count=4,
+        diagnosis_submitted=True,
+        diagnosis=scenario.root_cause,  # Correct diagnosis
+        fix_applied=False,  # But no fix taken
+        correct_fix=False,
+        clues_discovered=["payment_service_down", "crash_error_in_logs", "recent_deploy_found"],
+        collateral_damage=False,
+    )
+    score, breakdown = grade_episode(state, scenario)
+    # Should still get diagnosis credit even without fix
+    assert breakdown["diagnosis_accuracy"] == 0.4  # Full diagnosis credit
+    # But no fix component
+    assert breakdown["fix_applied"] == 0.0
+    # Score should be diagnosis (0.4) + efficiency + collateral (0.15) = 0.55+
+    assert score >= 0.55
+
+
+def test_collateral_damage_flag_independent() -> None:
+    """Test that collateral damage is independent of fix correctness."""
+    scenario = SCENARIOS["medium_cascading_failure"]
+    # Wrong fix but marked as not harmful (exploratory)
+    state = IncidentState(
+        task_id=scenario.task_id,
+        step_count=8,
+        diagnosis_submitted=True,
+        diagnosis="cache memory exhaustion",
+        fix_applied=True,
+        correct_fix=False,
+        fix_quality=0.3,  # Exploratory
+        clues_discovered=["api_gateway_high_latency", "database_overloaded"],
+        collateral_damage=False,  # Explicitly false - fix was exploratory but helped
+    )
+    score, breakdown = grade_episode(state, scenario)
+    # Should get collateral credit even with wrong fix
+    assert breakdown["no_collateral_damage"] == 0.15
+    # Total should reflect the correctness, not auto-penalized
+    assert score > 0.4  # At least diagnosis + collateral

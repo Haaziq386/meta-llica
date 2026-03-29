@@ -183,3 +183,10 @@ class IncidentState(BaseModel):
         default=False,
         description="Whether the applied fix matched the scenario ground truth.",
     )
+    fix_quality: float = Field(
+        default=0.0,
+        description=(
+            "Quality score of the applied fix in range [0.0, 1.0], where 1.0 is perfect, "
+            "0.5 is reasonable alternative, 0.3 is exploratory, 0.0 is wrong."
+        ),
+    )

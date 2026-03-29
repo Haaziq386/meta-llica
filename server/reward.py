@@ -194,6 +194,48 @@ def grade_diagnosis(parameters: dict | None, scenario: Scenario) -> float:
     return 0.0
 
 
+def evaluate_fix_quality(
+    action: IncidentAction, scenario: Scenario
+) -> tuple[float, bool]:
+    """Evaluate fix quality with gradations instead of binary.
+
+    Returns:
+        Tuple of (fix_quality_score [0-1], is_harmful [bool])
+
+    Score breakdown:
+    - 1.0: Exact correct fix (matching command AND target)
+    - 0.5: Right command, wrong target (shows understanding of fix type)
+    - 0.5: Right target, wrong command (explores alternatives)
+    - 0.3: Reasonable but suboptimal action
+    - 0.0: Harmful or clearly wrong action
+
+    Harm is marked True only if the action is known to worsen situation.
+    """
+
+    # Exact match: perfect fix
+    if (
+        action.command == scenario.correct_fix_command
+        and action.target == scenario.correct_fix_target
+    ):
+        return 1.0, False
+
+    # Right command, wrong target: shows understanding of fix type
+    if action.command == scenario.correct_fix_command:
+        return 0.5, False
+
+    # Right target, wrong command: could still help partially
+    if action.target == scenario.correct_fix_target:
+        return 0.5, False
+
+    # Corrective action but wrong on both fronts
+    if action.command in {"restart_service", "rollback_deploy", "scale_service"}:
+        # Scenario-specific: some wrong fixes are helpful (shown by response)
+        # For now, mark as exploratory (0.3) rather than harmful (0.0)
+        return 0.3, False
+
+    return 0.0, False
+
+
 def compute_step_reward(
     action: IncidentAction,
     result: str,

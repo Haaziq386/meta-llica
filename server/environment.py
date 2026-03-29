@@ -17,7 +17,12 @@ from uuid import uuid4
 from models import IncidentAction, IncidentObservation, IncidentState
 from scenarios import get_scenario
 from scenarios.base import Scenario
-from server.reward import compute_step_reward, grade_diagnosis, is_correct_fix
+from server.reward import (
+    compute_step_reward,
+    evaluate_fix_quality,
+    grade_diagnosis,
+    is_correct_fix,
+)
 
 # Import compatibility for different openenv-core versions.
 try:  # Try 1: newer path
@@ -236,6 +241,9 @@ class IncidentEnvironment(OpenEnvEnvironment):
             self._state.correct_fix = is_correct_fix(action, scenario)
             if not self._state.correct_fix:
                 self._state.collateral_damage = True
+            else:
+                # Correct fix applied — clear any prior collateral damage from exploratory attempts
+                self._state.collateral_damage = False
 
         # Diagnosis captures whether the root cause was identified correctly.
         if action.command == "submit_diagnosis":
