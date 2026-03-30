@@ -213,3 +213,6 @@ def main() -> None:
         port=7860,
         reload=False,
     )
+
+if __name__ == "__main__":
+    main()
