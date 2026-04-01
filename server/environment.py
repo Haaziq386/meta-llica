@@ -54,6 +54,9 @@ class EpisodeRuntime:
     done: bool = False
     actions_taken: list[str] = field(default_factory=list)
     services_status: dict[str, str] = field(default_factory=dict)
+    results_history: list[str] = field(default_factory=list)
+    query_logs_history: list[str] = field(default_factory=list)
+    service_history: list[str] = field(default_factory=list)
 
 
 class IncidentEnvironment(OpenEnvEnvironment):
@@ -119,6 +122,10 @@ class IncidentEnvironment(OpenEnvEnvironment):
             available_services=scenario.available_services,
             clues_found=[],
             actions_taken=[],
+            previous_action_results=[],
+            previous_logs=[],
+            dependency_chain=self._current_dependency_chain(scenario),
+            hypothesis=self._build_hypothesis(scenario),
             metadata={"task_id": scenario.task_id, "difficulty": scenario.difficulty},
         )
 
@@ -143,6 +150,84 @@ class IncidentEnvironment(OpenEnvEnvironment):
         elif "status: healthy" in text or "ready" in text:
             self._runtime.services_status[target] = "healthy"
 
+    def _current_dependency_chain(self, scenario: Scenario) -> list[str]:
+        """Choose the most relevant service and return its dependency chain."""
+
+        if self._runtime.service_history:
+            root_service = self._runtime.service_history[-1]
+        elif scenario.affected_services:
+            root_service = scenario.affected_services[0]
+        else:
+            root_service = next(iter(scenario.service_topology), "")
+
+        if root_service and root_service in scenario.service_topology:
+            return scenario.trace_chain(root_service)
+        return []
+
+    def _describe_clue(self, clue: str) -> str:
+        mapping = {
+            "payment_service_down": "payment-service is down",
+            "crash_error_in_logs": "payment-service is crashing on startup",
+            "config_key_missing": "a required config key is missing",
+            "recent_deploy_found": "a recent deployment changed payment-service behavior",
+            "dependency_chain_traced": "dependency relationships have been explored",
+        }
+        return mapping.get(clue, clue.replace("_", " "))
+
+    def _build_hypothesis(self, scenario: Scenario) -> str:
+        """Create a concise hypothesis from known clues and service status."""
+
+        clues = self._state.clues_discovered
+        clue_set = set(clues)
+        if clue_set:
+            if {"config_key_missing", "recent_deploy_found"}.issubset(clue_set):
+                return (
+                    "Working hypothesis: a recent payment-service deployment removed a required "
+                    "config fallback, causing startup failure and service outage."
+                )
+            if {"crash_error_in_logs", "payment_service_down"}.issubset(clue_set):
+                return (
+                    "Working hypothesis: payment-service is down because it crashes on startup. "
+                    "Investigate the service config and recent deploys."
+                )
+            descriptions = ", ".join(self._describe_clue(clue) for clue in clues)
+            return f"Working hypothesis: {descriptions}."
+
+        down_services = [
+            service
+            for service, status in self._runtime.services_status.items()
+            if status == "down"
+        ]
+        degraded_services = [
+            service
+            for service, status in self._runtime.services_status.items()
+            if status == "degraded"
+        ]
+
+        if down_services:
+            return f"Working hypothesis: {', '.join(down_services)} are currently down."
+        if degraded_services:
+            return f"Working hypothesis: {', '.join(degraded_services)} are degraded."
+
+        if scenario.affected_services:
+            service = scenario.affected_services[0]
+            return (
+                f"No strong hypothesis yet; continue investigating {service} and its immediate dependencies."
+            )
+
+        return "No strong hypothesis yet; continue investigating the incident."
+
+    def _record_action_result(self, action: IncidentAction, action_result: str) -> None:
+        """Persist the action result into runtime history for future observations."""
+
+        self._runtime.results_history.append(
+            f"{self._state.step_count}. {action.command} {action.target} => {action_result}"
+        )
+        if action.command == "query_logs":
+            self._runtime.query_logs_history.append(action_result)
+        if action.target in self._runtime.services_status:
+            self._runtime.service_history.append(action.target)
+
     def _build_observation(
         self,
         scenario: Scenario,
@@ -162,6 +247,10 @@ class IncidentEnvironment(OpenEnvEnvironment):
             available_services=scenario.available_services,
             clues_found=list(self._state.clues_discovered),
             actions_taken=list(self._runtime.actions_taken),
+            previous_action_results=list(self._runtime.results_history),
+            previous_logs=list(self._runtime.query_logs_history),
+            dependency_chain=self._current_dependency_chain(scenario),
+            hypothesis=self._build_hypothesis(scenario),
             metadata={
                 "task_id": scenario.task_id,
                 "difficulty": scenario.difficulty,
@@ -184,13 +273,14 @@ class IncidentEnvironment(OpenEnvEnvironment):
         scenario = self._scenario_or_raise()
 
         if self._runtime.done:
-            return self._build_observation(
+            obs = self._build_observation(
                 scenario=scenario,
                 reward=0.0,
                 action_result=(
                     "Episode already completed. Call /reset to start a new incident."
                 ),
             )
+            return obs
 
         # Validate action command.
         if not scenario.is_valid_command(action.command):
@@ -201,13 +291,15 @@ class IncidentEnvironment(OpenEnvEnvironment):
             reward = -0.1
             if self._state.step_count >= scenario.max_steps:
                 self._runtime.done = True
-            return self._build_observation(
+            obs = self._build_observation(
                 scenario=scenario,
                 reward=reward,
                 action_result=(
                     f"Invalid command '{action.command}'. See /tasks action schema."
                 ),
             )
+            self._record_action_result(action, obs.action_result)
+            return obs
 
         # Validate target for this specific command.
         if not scenario.is_valid_target(action.target, action.command):
@@ -218,13 +310,15 @@ class IncidentEnvironment(OpenEnvEnvironment):
             reward = -0.1
             if self._state.step_count >= scenario.max_steps:
                 self._runtime.done = True
-            return self._build_observation(
+            obs = self._build_observation(
                 scenario=scenario,
                 reward=reward,
                 action_result=(
                     f"Invalid target '{action.target}' for command '{action.command}'."
                 ),
             )
+            self._record_action_result(action, obs.action_result)
+            return obs
 
         # Action is valid and counts as a normal step.
         self._state.step_count += 1
@@ -274,8 +368,10 @@ class IncidentEnvironment(OpenEnvEnvironment):
         if timed_out and not solved:
             action_result = f"{action_result}\nEpisode ended: max steps reached ({scenario.max_steps})."
 
-        return self._build_observation(
+        obs = self._build_observation(
             scenario=scenario,
             reward=reward,
             action_result=action_result,
         )
+        self._record_action_result(action, action_result)
+        return obs

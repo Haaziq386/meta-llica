@@ -27,19 +27,19 @@ pytest
 ### Health
 
 ```bash
-curl -s http://localhost:7860/health
+curl -s https://atul-k-6o-incident-response-env.hf.space/health
 ```
 
 ### List tasks
 
 ```bash
-curl -s http://localhost:7860/tasks | jq
+curl -s https://atul-k-6o-incident-response-env.hf.space/tasks | jq
 ```
 
 ### Reset task
 
 ```bash
-curl -s -X POST http://localhost:7860/reset \
+curl -s -X POST https://atul-k-6o-incident-response-env.hf.space/reset \
   -H "Content-Type: application/json" \
   -d '{"task_id":"easy_crashed_service"}' | jq
 ```
@@ -47,7 +47,7 @@ curl -s -X POST http://localhost:7860/reset \
 ### Step action
 
 ```bash
-curl -s -X POST http://localhost:7860/step \
+curl -s -X POST https://atul-k-6o-incident-response-env.hf.space/step \
   -H "Content-Type: application/json" \
   -d '{"command":"query_logs","target":"payment-service"}' | jq
 ```
@@ -55,19 +55,19 @@ curl -s -X POST http://localhost:7860/step \
 ### State
 
 ```bash
-curl -s http://localhost:7860/state | jq
+curl -s https://atul-k-6o-incident-response-env.hf.space/state | jq
 ```
 
 ### Grader
 
 ```bash
-curl -s http://localhost:7860/grader | jq
+curl -s https://atul-k-6o-incident-response-env.hf.space/grader | jq
 ```
 
 ### Baseline
 
 ```bash
-curl -s -X POST http://localhost:7860/baseline \
+curl -s -X POST https://atul-k-6o-incident-response-env.hf.space/baseline \
   -H "Content-Type: application/json" \
   -d '{}' | jq
 ```

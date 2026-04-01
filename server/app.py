@@ -188,7 +188,7 @@ def baseline(payload: BaselineRequest | None = None) -> dict[str, Any]:
     """Run baseline inference and return scores for all tasks."""
 
     payload = payload or BaselineRequest()
-    env_url = payload.env_url or os.getenv("INCIDENT_ENV_URL", "http://localhost:7860")
+    env_url = payload.env_url or os.getenv("INCIDENT_ENV_URL", "https://atul-k-6o-incident-response-env.hf.space")
 
     try:
         return run_baseline(

@@ -6,7 +6,7 @@ openenv-core client imports are unavailable.
 Examples:
     from client import IncidentEnv
 
-    env = IncidentEnv("http://localhost:7860")
+    env = IncidentEnv("https://atul-k-6o-incident-response-env.hf.space")
     obs = env.reset("easy_crashed_service")
     obs = env.step({"command": "query_logs", "target": "payment-service"})
     print(env.state())
@@ -32,7 +32,7 @@ except Exception:  # noqa: BLE001
 class IncidentEnv(OpenEnvClient):
     """HTTP client helper for the incident response environment."""
 
-    def __init__(self, base_url: str = "http://localhost:7860", timeout: float = 30.0):
+    def __init__(self, base_url: str = "https://atul-k-6o-incident-response-env.hf.space", timeout: float = 30.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 

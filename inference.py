@@ -25,7 +25,7 @@ from models import IncidentAction
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_ENV_URL = "http://localhost:7860"
+DEFAULT_ENV_URL = "https://atul-k-6o-incident-response-env.hf.space"
 DEFAULT_MODEL = "llama-3.1-8b-instant"
 TASK_IDS = [
     "easy_crashed_service",
@@ -74,7 +74,7 @@ class BaselineConfig:
     model: str = DEFAULT_MODEL
     timeout_seconds: float = 30.0
     max_retries: int = 2
-    request_delay_seconds: float = 1.0
+    request_delay_seconds: float = 5.0
     log_level: str = "INFO"
 
 
@@ -181,6 +181,14 @@ def _build_user_prompt(observation: dict[str, Any], task_id: str) -> str:
     clues_str = ", ".join(clues_found) if clues_found else "None yet"
     known_status = {k: v for k, v in services_status.items() if v != "unknown"}
     status_str = ", ".join(f"{k}={v}" for k, v in known_status.items()) or "none yet"
+    previous_results = observation.get("previous_action_results", [])
+    previous_logs = observation.get("previous_logs", [])
+    dependency_chain = observation.get("dependency_chain", [])
+    hypothesis = observation.get("hypothesis", "No hypothesis available.")
+
+    results_str = "\n".join(previous_results) if previous_results else "None yet"
+    logs_str = ("\n---\n".join(previous_logs)) if previous_logs else "None yet"
+    chain_str = " -> ".join(dependency_chain) if dependency_chain else "None yet"
 
     return (
         f"Task: {task_id}\n"
@@ -190,9 +198,13 @@ def _build_user_prompt(observation: dict[str, Any], task_id: str) -> str:
         f"Known service statuses: {status_str}\n"
         f"Clues discovered: {clues_str}\n\n"
         f"Actions taken so far:\n{actions_str}\n\n"
+        f"Previous action results:\n{results_str}\n\n"
+        f"Previous query_logs results:\n{logs_str}\n\n"
+        f"Potential dependencies for the current service:\n{chain_str}\n\n"
+        f"Current working hypothesis:\n{hypothesis}\n\n"
         f"Last action result:\n{last_result}\n\n"
         f"Available services/targets: {', '.join(services)}\n\n"
-        "REMINDER: Do NOT repeat any (command, target) pair listed above.\n"
+        "REMINDER: Use the hypothesis to guide your next step, but do not chase unrelated dependencies unless evidence supports them.\n"
         "Respond with ONE JSON action only."
     )
 

@@ -113,6 +113,31 @@ class IncidentObservation(BaseModel):
         default_factory=list,
         description="Human-readable action history for this episode.",
     )
+    previous_action_results: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Readable history of past action results, excluding the current "
+            "action_result field."
+        ),
+    )
+    previous_logs: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Text output from all query_logs actions executed so far in the episode."
+        ),
+    )
+    dependency_chain: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Dependency chain for the service currently under investigation."
+        ),
+    )
+    hypothesis: str = Field(
+        default="",
+        description=(
+            "A concise working hypothesis based on discovered clues and known service status."
+        ),
+    )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description=(
