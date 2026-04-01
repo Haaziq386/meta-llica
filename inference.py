@@ -29,8 +29,8 @@ DEFAULT_ENV_URL = "https://atul-k-6o-incident-response-env.hf.space"
 DEFAULT_MODEL = "llama-3.1-8b-instant"
 TASK_IDS = [
     "easy_crashed_service",
-    "medium_cascading_failure",
-    "hard_intermittent_ghost",
+    "medium_intermittent_ghost",
+    "hard_cascading_failure",
 ]
 
 # Hackathon-required env var names, with project-specific fallbacks.
@@ -74,7 +74,7 @@ class BaselineConfig:
     model: str = DEFAULT_MODEL
     timeout_seconds: float = 30.0
     max_retries: int = 2
-    request_delay_seconds: float = 5.0
+    request_delay_seconds: float = 10.0
     log_level: str = "INFO"
 
 
@@ -114,7 +114,7 @@ def _heuristic_action(observation: dict[str, Any], task_id: str) -> IncidentActi
                 parameters={"reason": "bad_deployment"},
             ),
         ]
-    elif task_id == "medium_cascading_failure":
+    elif task_id == "hard_cascading_failure":
         policy = [
             IncidentAction(command="check_metrics", target="api-gateway"),
             IncidentAction(command="trace_dependency", target="api-gateway"),
@@ -251,7 +251,8 @@ def _llm_action(
             )
             completion = client.chat.completions.create(
                 model=config.model,
-                temperature=0.1,
+                temperature=0,
+                seed=42,
                 messages=messages,
                 timeout=config.timeout_seconds,
             )
@@ -445,14 +446,14 @@ def run_baseline(
                     "mode": "heuristic",
                 },
                 {
-                    "task_id": "medium_cascading_failure",
-                    "score": 0.52,
+                    "task_id": "medium_intermittent_ghost",
+                    "score": 0.27,
                     "steps_taken": 9,
                     "mode": "heuristic",
                 },
                 {
-                    "task_id": "hard_intermittent_ghost",
-                    "score": 0.27,
+                    "task_id": "hard_cascading_failure",
+                    "score": 0.52,
                     "steps_taken": 9,
                     "mode": "heuristic",
                 },

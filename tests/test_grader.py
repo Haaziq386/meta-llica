@@ -42,7 +42,7 @@ def test_perfect_score_scenario() -> None:
 
 
 def test_zero_score_like_scenario() -> None:
-    scenario = SCENARIOS["medium_cascading_failure"]
+    scenario = SCENARIOS["hard_cascading_failure"]
     state = IncidentState(
         task_id=scenario.task_id,
         step_count=8,
@@ -62,7 +62,7 @@ def test_zero_score_like_scenario() -> None:
 
 
 def test_partial_score_scenario() -> None:
-    scenario = SCENARIOS["hard_intermittent_ghost"]
+    scenario = SCENARIOS["medium_intermittent_ghost"]
     state = IncidentState(
         task_id=scenario.task_id,
         step_count=10,
@@ -116,7 +116,7 @@ def test_gradual_fix_scoring_perfect() -> None:
 
 def test_gradual_fix_scoring_partial() -> None:
     """Test that reasonable but suboptimal fix gets partial credit."""
-    scenario = SCENARIOS["medium_cascading_failure"]
+    scenario = SCENARIOS["hard_cascading_failure"]
     state = IncidentState(
         task_id=scenario.task_id,
         step_count=10,
@@ -161,7 +161,7 @@ def test_independent_diagnosis_scoring() -> None:
 
 def test_collateral_damage_flag_independent() -> None:
     """Test that collateral damage is independent of fix correctness."""
-    scenario = SCENARIOS["medium_cascading_failure"]
+    scenario = SCENARIOS["hard_cascading_failure"]
     # Wrong fix but marked as not harmful (exploratory)
     state = IncidentState(
         task_id=scenario.task_id,

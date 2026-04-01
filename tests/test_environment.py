@@ -11,8 +11,8 @@ def test_reset_works_for_each_task() -> None:
     env = IncidentEnvironment()
     for task_id in [
         "easy_crashed_service",
-        "medium_cascading_failure",
-        "hard_intermittent_ghost",
+        "medium_intermittent_ghost",
+        "hard_cascading_failure",
     ]:
         obs = env.reset(task_id=task_id)
         assert obs.done is False
@@ -58,7 +58,7 @@ def test_episode_ends_after_fix_and_diagnosis() -> None:
 
 def test_reward_computation_is_exposed_in_observation() -> None:
     env = IncidentEnvironment()
-    env.reset(task_id="medium_cascading_failure")
+    env.reset(task_id="hard_cascading_failure")
 
     obs = env.step(IncidentAction(command="check_metrics", target="api-gateway"))
     assert isinstance(obs.reward, float)

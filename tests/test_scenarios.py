@@ -31,8 +31,8 @@ def test_all_scenarios_have_required_fields() -> None:
 
 def test_response_maps_cover_expected_path_minimum() -> None:
     assert len(SCENARIOS["easy_crashed_service"].response_map) >= 10
-    assert len(SCENARIOS["medium_cascading_failure"].response_map) >= 20
-    assert len(SCENARIOS["hard_intermittent_ghost"].response_map) >= 25
+    assert len(SCENARIOS["medium_intermittent_ghost"].response_map) >= 20
+    assert len(SCENARIOS["hard_cascading_failure"].response_map) >= 25
 
 
 def test_key_clues_are_findable_in_map_text() -> None:
@@ -44,12 +44,12 @@ def test_key_clues_are_findable_in_map_text() -> None:
             "deploy_id",
             "status: DOWN",
         ],
-        "medium_cascading_failure": [
+        "hard_cascading_failure": [
             "memory=98%",
             "eviction",
             "depends on",
         ],
-        "hard_intermittent_ghost": [
+        "medium_intermittent_ghost": [
             "replica-3",
             "OOMKilled",
             "Recent deploys for api-gateway",

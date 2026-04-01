@@ -23,5 +23,5 @@ runtime:
   memory_gb: 8
 tasks:
   - easy_crashed_service
-  - medium_cascading_failure
-  - hard_intermittent_ghost
+  - medium_intermittent_ghost
+  - hard_cascading_failure

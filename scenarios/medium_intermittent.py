@@ -1,4 +1,4 @@
-"""Hard scenario: intermittent failures caused by one leaking replica.
+"""Medium scenario: intermittent failures caused by one leaking replica.
 
 This task is intentionally deceptive. Aggregate service-level metrics look only
 slightly degraded, but one replica is repeatedly OOM-killed.
@@ -9,8 +9,8 @@ from __future__ import annotations
 from scenarios.base import Scenario
 
 
-def build_hard_intermittent_ghost() -> Scenario:
-    """Construct the hard deterministic scenario."""
+def build_medium_intermittent_ghost() -> Scenario:
+    """Construct the medium deterministic scenario."""
 
     service_topology = {
         "api-gateway": ["user-service", "order-service", "auth-service"],
@@ -242,9 +242,9 @@ def build_hard_intermittent_ghost() -> Scenario:
     }
 
     return Scenario(
-        task_id="hard_intermittent_ghost",
+        task_id="medium_intermittent_ghost",
         name="The Intermittent Ghost",
-        difficulty="hard",
+        difficulty="medium",
         description=(
             "Intermittent api-gateway 503s caused by a memory leak in one replica; "
             "aggregate metrics initially mask the issue."

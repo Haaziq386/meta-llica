@@ -48,8 +48,8 @@ Returned state includes:
 ## Tasks
 
 1. `easy_crashed_service`: bad deploy on payment-service, correct fix is rollback.
-2. `medium_cascading_failure`: cache exhaustion causes latency cascade, correct fix is scale cache.
-3. `hard_intermittent_ghost`: one leaking replica after deploy, correct fix is rollback api-gateway.
+2. `medium_intermittent_ghost`: one leaking replica after deploy, correct fix is rollback api-gateway.
+3. `hard_cascading_failure`: cache exhaustion causes latency cascade, correct fix is scale cache.
 
 ## Reward + Grader
 
@@ -102,10 +102,10 @@ Latest baseline run:
 
 | Task | Score | Steps |
 |---|---:|---:|
-| easy_crashed_service | 0.88 | 5 |
-| medium_cascading_failure | 0.354 | 11 |
-| hard_intermittent_ghost | -0.5083 | 11 |
-| average | 0.5808 | - |
+| easy_crashed_service | 0.5743 | 9 |
+| medium_intermittent_ghost | 0.4067 | 11 |
+| hard_cascading_failure | 0.382 | 11 |
+| average | 0.4543 | - |
 
 ![Baseline results screenshot](docs/baseline-results.png)
 

@@ -1,4 +1,4 @@
-"""Medium scenario: cascading latency originating from cache memory exhaustion.
+"""Hard scenario: cascading latency originating from cache memory exhaustion.
 
 This scenario teaches upstream root-cause reasoning. Multiple services look bad,
 but only cache-redis is the primary failure source.
@@ -9,8 +9,8 @@ from __future__ import annotations
 from scenarios.base import Scenario
 
 
-def build_medium_cascading_failure() -> Scenario:
-    """Construct the medium deterministic scenario."""
+def build_hard_cascading_failure() -> Scenario:
+    """Construct the hard deterministic scenario."""
 
     service_topology = {
         "api-gateway": ["user-service", "order-service", "auth-service"],
@@ -188,9 +188,9 @@ def build_medium_cascading_failure() -> Scenario:
     }
 
     return Scenario(
-        task_id="medium_cascading_failure",
+        task_id="hard_cascading_failure",
         name="The Cascading Failure",
-        difficulty="medium",
+        difficulty="hard",
         description=(
             "Elevated p99 latency across multiple services caused by an upstream "
             "cache-redis memory exhaustion event."

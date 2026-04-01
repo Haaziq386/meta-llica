@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from scenarios.base import Scenario
 from scenarios.easy_crashed_service import build_easy_crashed_service
-from scenarios.hard_intermittent import build_hard_intermittent_ghost
-from scenarios.medium_cascading import build_medium_cascading_failure
+from scenarios.medium_intermittent import build_medium_intermittent_ghost
+from scenarios.hard_cascading import build_hard_cascading_failure
 
 SCENARIOS: dict[str, Scenario] = {
     "easy_crashed_service": build_easy_crashed_service(),
-    "medium_cascading_failure": build_medium_cascading_failure(),
-    "hard_intermittent_ghost": build_hard_intermittent_ghost(),
+    "medium_intermittent_ghost": build_medium_intermittent_ghost(),
+    "hard_cascading_failure": build_hard_cascading_failure(),
 }
 
 
