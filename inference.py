@@ -38,6 +38,24 @@ _API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")  # r
 _MODEL_NAME = os.getenv("MODEL_NAME") or os.getenv("GROQ_MODEL", DEFAULT_MODEL)
 _HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("GROQ_API_KEY", "")
 
+BENCHMARK = "incident_response_env"
+SUCCESS_SCORE_THRESHOLD = 0.1
+
+
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: str, reward: float, done: bool, error: str | None) -> None:
+    error_val = error if error else "null"
+    print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error_val}", flush=True)
+
+
+def log_end(success: bool, steps: int, score: float, rewards: list[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
+
+
 SYSTEM_PROMPT = """You are an on-call SRE triaging a production incident. You interact with the environment one JSON action at a time.
 
 MANDATORY GOAL: Identify the root cause AND apply the correct fix. Both are required to close the episode and score points.
@@ -330,72 +348,95 @@ def _run_one_task(
     max_steps = int(observation.get("max_steps", 15))
     llm_steps = 0
     heuristic_steps = 0
+    rewards: list[float] = []
+    steps_taken = 0
+    score = 0.0
+    success = False
 
     # Conversation history — maintained across all steps of this episode.
     messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-    for _ in range(max_steps):
-        if observation.get("done", False):
-            break
+    log_start(task=task_id, env=BENCHMARK, model=config.model)
 
-        step_number = int(observation.get("step_number", 0)) + 1
+    try:
+        for _ in range(max_steps):
+            if observation.get("done", False):
+                break
 
-        if client is None:
-            action = _heuristic_action(observation, task_id)
-            heuristic_steps += 1
-            logger.info(
-                "[task=%s step=%s] heuristic_action command=%s target=%s",
-                task_id,
-                step_number,
-                action.command,
-                action.target,
-            )
-        else:
-            if config.request_delay_seconds > 0:
-                time.sleep(config.request_delay_seconds)
-            try:
-                action, used_llm = _llm_action(
-                    client, config, messages, observation, task_id, step_number
-                )
-                if used_llm:
-                    llm_steps += 1
-                else:
-                    heuristic_steps += 1
-            except Exception:
+            step_number = int(observation.get("step_number", 0)) + 1
+
+            if client is None:
                 action = _heuristic_action(observation, task_id)
                 heuristic_steps += 1
-                logger.warning(
-                    "[task=%s step=%s] falling back to heuristic action",
+                logger.info(
+                    "[task=%s step=%s] heuristic_action command=%s target=%s",
                     task_id,
                     step_number,
+                    action.command,
+                    action.target,
                 )
+            else:
+                if config.request_delay_seconds > 0:
+                    time.sleep(config.request_delay_seconds)
+                try:
+                    action, used_llm = _llm_action(
+                        client, config, messages, observation, task_id, step_number
+                    )
+                    if used_llm:
+                        llm_steps += 1
+                    else:
+                        heuristic_steps += 1
+                except Exception:
+                    action = _heuristic_action(observation, task_id)
+                    heuristic_steps += 1
+                    logger.warning(
+                        "[task=%s step=%s] falling back to heuristic action",
+                        task_id,
+                        step_number,
+                    )
 
-        step_resp = http.post("/step", json=action.model_dump(exclude_none=True))
-        step_resp.raise_for_status()
-        observation = step_resp.json()
+            step_resp = http.post("/step", json=action.model_dump(exclude_none=True))
+            step_resp.raise_for_status()
+            observation = step_resp.json()
+
+            step_reward = float(observation.get("reward", 0.0))
+            done = bool(observation.get("done", False))
+            error = observation.get("error") or observation.get("last_action_error") or None
+            rewards.append(step_reward)
+            steps_taken = step_number
+
+            action_str = f"{action.command}({action.target})"
+            log_step(step=step_number, action=action_str, reward=step_reward, done=done, error=error)
+
+            logger.info(
+                "[task=%s step=%s] env reward=%.4f done=%s",
+                task_id,
+                step_number,
+                step_reward,
+                done,
+            )
+
+        grader_resp = http.get("/grader")
+        grader_resp.raise_for_status()
+        graded = grader_resp.json()
+        score = float(graded.get("score", 0.0))
+        steps_taken = int(graded.get("steps_taken", steps_taken))
+        success = score >= SUCCESS_SCORE_THRESHOLD
         logger.info(
-            "[task=%s step=%s] env reward=%.4f done=%s",
+            "[task=%s] graded score=%.4f steps=%s llm_steps=%s heuristic_steps=%s",
             task_id,
-            step_number,
-            float(observation.get("reward", 0.0)),
-            bool(observation.get("done", False)),
+            score,
+            steps_taken,
+            llm_steps,
+            heuristic_steps,
         )
+    finally:
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
-    grader_resp = http.get("/grader")
-    grader_resp.raise_for_status()
-    graded = grader_resp.json()
-    logger.info(
-        "[task=%s] graded score=%.4f steps=%s llm_steps=%s heuristic_steps=%s",
-        task_id,
-        float(graded.get("score", 0.0)),
-        int(graded.get("steps_taken", 0)),
-        llm_steps,
-        heuristic_steps,
-    )
     return {
         "task_id": task_id,
-        "score": float(graded.get("score", 0.0)),
-        "steps_taken": int(graded.get("steps_taken", 0)),
+        "score": score,
+        "steps_taken": steps_taken,
         "mode": "llm" if client is not None else "heuristic",
         "llm_steps": llm_steps,
         "heuristic_steps": heuristic_steps,

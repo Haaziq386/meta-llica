@@ -24,6 +24,14 @@ def build_hard_cascading_failure() -> Scenario:
 
     response_map: dict[tuple[str, str], str] = {
         (
+            "check_service_status",
+            "api-gateway",
+        ): (
+            "api-gateway status: DEGRADED\n"
+            "replicas healthy=3/3\n"
+            "note: host resources normal; upstream connections timing out"
+        ),
+        (
             "check_metrics",
             "api-gateway",
         ): (
