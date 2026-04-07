@@ -1,9 +1,9 @@
 """Root-level inference script for IncidentEnv.
 
 Hackathon-compliant entry point. Reads the following env vars:
-  HF_TOKEN      - API key (alias for GROQ_API_KEY)
-  MODEL_NAME    - Model identifier (alias for GROQ_MODEL)
-  API_BASE_URL  - LLM API base URL (read for compliance; Groq uses its own endpoint)
+  API_BASE_URL  - LLM API base URL (injected by evaluator)
+  MODEL_NAME    - Model identifier
+  HF_TOKEN      - API key (also accepts API_KEY injected by evaluator)
 
 Run:
     python inference.py
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
-from groq import Groq
+from openai import OpenAI
 
 from models import IncidentAction
 
@@ -33,10 +33,11 @@ TASK_IDS = [
     "hard_cascading_failure",
 ]
 
-# Hackathon-required env var names, with project-specific fallbacks.
-_API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")  # read for compliance
-_MODEL_NAME = os.getenv("MODEL_NAME") or os.getenv("GROQ_MODEL", DEFAULT_MODEL)
-_HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("GROQ_API_KEY", "")
+# Hackathon-required env var names. API_BASE_URL and MODEL_NAME have defaults;
+# HF_TOKEN / API_KEY are injected by the evaluator at runtime.
+_API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+_MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL)
+_HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
 
 BENCHMARK = "incident_response_env"
 SUCCESS_SCORE_THRESHOLD = 0.1
@@ -89,6 +90,7 @@ class BaselineConfig:
     """Runtime configuration for baseline inference."""
 
     env_url: str = DEFAULT_ENV_URL
+    api_base_url: str = "https://router.huggingface.co/v1"
     model: str = DEFAULT_MODEL
     timeout_seconds: float = 30.0
     max_retries: int = 2
@@ -243,14 +245,14 @@ def _is_repeated_action(action: IncidentAction, actions_taken: list[str]) -> boo
 
 
 def _llm_action(
-    client: Groq,
+    client: OpenAI,
     config: BaselineConfig,
     messages: list[dict],
     observation: dict[str, Any],
     task_id: str,
     step_number: int,
 ) -> tuple[IncidentAction, bool]:
-    """Query Groq for next action using full conversation history.
+    """Query LLM for next action using full conversation history.
 
     Returns (action, used_llm) where used_llm is False when heuristic was used.
     """
@@ -261,7 +263,7 @@ def _llm_action(
     for attempt in range(config.max_retries + 1):
         try:
             logger.info(
-                "[task=%s step=%s] calling Groq model=%s attempt=%s",
+                "[task=%s step=%s] calling LLM model=%s attempt=%s",
                 task_id,
                 step_number,
                 config.model,
@@ -309,12 +311,12 @@ def _llm_action(
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             if _is_rate_limit_error(exc):
-                # Groq SDK already retried with its own backoff — don't stack more sleep.
+                # SDK already retried with its own backoff — don't stack more sleep.
                 sleep_seconds = 2.0
             else:
                 sleep_seconds = config.request_delay_seconds * (2**attempt)
             logger.warning(
-                "[task=%s step=%s] Groq attempt failed attempt=%s error=%s backoff=%.2fs",
+                "[task=%s step=%s] LLM attempt failed attempt=%s error=%s backoff=%.2fs",
                 task_id,
                 step_number,
                 attempt + 1,
@@ -325,7 +327,7 @@ def _llm_action(
 
     # All retries exhausted — remove the user message we appended.
     messages.pop()
-    raise RuntimeError(f"Failed to obtain valid action from Groq: {last_error}")
+    raise RuntimeError(f"Failed to obtain valid action from LLM: {last_error}")
 
 
 def _verify_server(http: httpx.Client) -> None:
@@ -339,7 +341,7 @@ def _run_one_task(
     http: httpx.Client,
     task_id: str,
     config: BaselineConfig,
-    client: Groq | None,
+    client: OpenAI | None,
 ) -> dict[str, Any]:
     """Run baseline policy for one task through the HTTP environment API."""
     reset_resp = http.post("/reset", json={"task_id": task_id})
@@ -466,6 +468,7 @@ def run_baseline(
     """Run baseline across all tasks and return aggregated scores."""
     config = BaselineConfig(
         env_url=env_url or os.getenv("INCIDENT_ENV_URL", DEFAULT_ENV_URL),
+        api_base_url=_API_BASE_URL,
         model=model or _MODEL_NAME,
         timeout_seconds=timeout_seconds,
         request_delay_seconds=float(
@@ -516,8 +519,8 @@ def run_baseline(
             ],
         }
 
-    llm_client = Groq(api_key=api_key)
-    logger.info("API key detected, live Groq mode enabled model=%s", config.model)
+    llm_client = OpenAI(base_url=config.api_base_url, api_key=api_key)
+    logger.info("API key detected, live LLM mode enabled base_url=%s model=%s", config.api_base_url, config.model)
 
     results: list[dict[str, Any]] = []
     with httpx.Client(base_url=config.env_url, timeout=config.timeout_seconds) as http:
