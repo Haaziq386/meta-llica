@@ -406,6 +406,20 @@ def _run_one_task(
                     error = err_body.get("detail") or err_body.get("error") or "HTTP 400"
                 except Exception:
                     error = "HTTP 400"
+
+                if "not been reset" in (error or "").lower():
+                    # Environment session expired (likely due to long rate-limit waits).
+                    # Recover by resetting, then end this episode — we can't resume mid-state.
+                    logger.warning(
+                        "[task=%s step=%s] env session expired — resetting and ending episode",
+                        task_id, step_number,
+                    )
+                    try:
+                        http.post("/reset", json={"task_id": task_id})
+                    except Exception:
+                        pass
+                    break
+
                 logger.warning(
                     "[task=%s step=%s] env rejected action command=%s target=%s error=%s — retrying with heuristic",
                     task_id, step_number, action.command, action.target, error,
@@ -413,6 +427,23 @@ def _run_one_task(
                 action = _heuristic_action(observation, task_id)
                 heuristic_steps += 1
                 step_resp = http.post("/step", json=action.model_dump(exclude_none=True))
+                if step_resp.status_code == 400:
+                    # Heuristic also rejected — env is in a bad state, end episode cleanly.
+                    try:
+                        err_body = step_resp.json()
+                        error = err_body.get("detail") or err_body.get("error") or "HTTP 400"
+                    except Exception:
+                        error = "HTTP 400"
+                    logger.warning(
+                        "[task=%s step=%s] heuristic also rejected error=%s — ending episode",
+                        task_id, step_number, error,
+                    )
+                    if "not been reset" in (error or "").lower():
+                        try:
+                            http.post("/reset", json={"task_id": task_id})
+                        except Exception:
+                            pass
+                    break
             step_resp.raise_for_status()
             observation = step_resp.json()
 
