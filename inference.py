@@ -508,7 +508,7 @@ def run_baseline(
         model=model or _MODEL_NAME,
         timeout_seconds=timeout_seconds,
         request_delay_seconds=float(
-            os.getenv("INCIDENT_LLM_REQUEST_DELAY_SECONDS", "1.0")
+            os.getenv("INCIDENT_LLM_REQUEST_DELAY_SECONDS", "0.0")
         ),
         log_level=os.getenv("INCIDENT_BASELINE_LOG_LEVEL", "INFO"),
     )
