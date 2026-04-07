@@ -12,7 +12,7 @@ from scenarios.base import Scenario
 from server.reward import grade_diagnosis
 
 
-SCORE_EPSILON = 1e-6
+SCORE_EPSILON = 1e-4
 
 
 def grade_episode(

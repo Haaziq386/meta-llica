@@ -33,6 +33,38 @@ TASK_IDS = [
     "hard_cascading_failure",
 ]
 
+_TASK_FAMILY_ORDER = {"easy": 0, "medium": 1, "hard": 2}
+
+def _task_family_from_metadata(task_id: str) -> str:
+    """
+    Map task id to family bucket (easy/medium/hard), including legacy ids.
+    """
+    prefix = (task_id or "").strip().lower().split("_", 1)[0]
+    if prefix in _TASK_FAMILY_ORDER:
+        return prefix
+    return "hard"
+
+def _discover_tasks(client: httpx.Client) -> list[dict[str, Any]]:
+    """
+    Fetch tasks from /tasks and return them ordered by family: easy, medium, hard.
+    """
+    resp = client.get("/tasks")
+    resp.raise_for_status()
+    payload = resp.json()
+    tasks = payload.get("tasks", [])
+
+    if not isinstance(tasks, list):
+        raise RuntimeError("/tasks response must contain a list under 'tasks'")
+
+    def _family_rank(task: dict[str, Any]) -> int:
+        difficulty = str(task.get("difficulty", "")).lower()
+        if difficulty in _TASK_FAMILY_ORDER:
+            return _TASK_FAMILY_ORDER[difficulty]
+        task_id = str(task.get("id", ""))
+        return _TASK_FAMILY_ORDER.get(_task_family_from_metadata(task_id), 2)
+
+    return sorted(tasks, key=lambda t: (_family_rank(t), str(t.get("id", ""))))
+
 # Hackathon-required env var names. API_BASE_URL and MODEL_NAME have defaults;
 # HF_TOKEN / API_KEY are injected by the evaluator at runtime.
 _API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
@@ -41,7 +73,7 @@ _HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
 
 BENCHMARK = "incident_response_env"
 SUCCESS_SCORE_THRESHOLD = 0.1
-SCORE_EPSILON = 1e-6
+SCORE_EPSILON = 1e-4
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -508,7 +540,7 @@ def run_baseline(
         model=model or _MODEL_NAME,
         timeout_seconds=timeout_seconds,
         request_delay_seconds=float(
-            os.getenv("INCIDENT_LLM_REQUEST_DELAY_SECONDS", "0.0")
+            os.getenv("INCIDENT_LLM_REQUEST_DELAY_SECONDS", "1.0")
         ),
         log_level=os.getenv("INCIDENT_BASELINE_LOG_LEVEL", "INFO"),
     )
