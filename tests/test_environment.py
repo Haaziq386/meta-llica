@@ -82,7 +82,7 @@ def test_grader_scoring_after_completion() -> None:
     scenario = env.current_scenario
     assert scenario is not None
     score, _ = grade_episode(env.state, scenario)
-    assert 0.0 <= score <= 1.0
+    assert 0.0 < score < 1.0
 
 
 def test_actions_after_done_return_terminal_message() -> None:

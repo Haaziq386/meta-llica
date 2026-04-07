@@ -41,6 +41,7 @@ _HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
 
 BENCHMARK = "incident_response_env"
 SUCCESS_SCORE_THRESHOLD = 0.1
+SCORE_EPSILON = 1e-6
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -467,7 +468,11 @@ def _run_one_task(
         grader_resp = http.get("/grader")
         grader_resp.raise_for_status()
         graded = grader_resp.json()
-        score = float(graded.get("score", 0.0))
+        raw_score = graded.get("score")
+        if raw_score is None:
+            raise RuntimeError("Grader response missing required 'score' field.")
+        score = float(raw_score)
+        score = max(SCORE_EPSILON, min(1.0 - SCORE_EPSILON, score))
         steps_taken = int(graded.get("steps_taken", steps_taken))
         success = score >= SUCCESS_SCORE_THRESHOLD
         logger.info(

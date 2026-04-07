@@ -28,7 +28,7 @@ This helps the agent learn useful behavior faster than only giving reward at the
 
 ## What is a Grader?
 
-The grader is an episode-end evaluator. It computes one final score in [0, 1] based on diagnosis accuracy, fix correctness, efficiency, and collateral damage.
+The grader is an episode-end evaluator. It computes one final score in (0, 1) based on diagnosis accuracy, fix correctness, efficiency, and collateral damage.
 
 Difference from reward: reward is per-step training feedback; grader is final evaluation.
 

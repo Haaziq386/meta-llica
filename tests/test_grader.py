@@ -19,7 +19,7 @@ def test_grader_returns_score_in_range() -> None:
         collateral_damage=False,
     )
     score, _ = grade_episode(state, SCENARIOS["easy_crashed_service"])
-    assert 0.0 <= score <= 1.0
+    assert 0.0 < score < 1.0
 
 
 def test_perfect_score_scenario() -> None:
@@ -35,7 +35,7 @@ def test_perfect_score_scenario() -> None:
         collateral_damage=False,
     )
     score, breakdown = grade_episode(state, scenario)
-    assert score == 1.0
+    assert 0.99 < score < 1.0
     assert breakdown["diagnosis_accuracy"] == 0.4
     assert breakdown["fix_applied"] == 0.3
     assert breakdown["no_collateral_damage"] == 0.15
@@ -54,7 +54,7 @@ def test_zero_score_like_scenario() -> None:
         collateral_damage=True,
     )
     score, breakdown = grade_episode(state, scenario)
-    assert score == 0.0
+    assert 0.0 < score < 0.01
     assert breakdown["diagnosis_accuracy"] == 0.0
     assert breakdown["fix_applied"] == 0.0
     assert breakdown["efficiency"] == 0.0
@@ -111,7 +111,7 @@ def test_gradual_fix_scoring_perfect() -> None:
     )
     score, breakdown = grade_episode(state, scenario)
     assert breakdown["fix_applied"] == 0.3  # Full credit
-    assert score == 1.0
+    assert 0.99 < score < 1.0
 
 
 def test_gradual_fix_scoring_partial() -> None:

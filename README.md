@@ -16,7 +16,7 @@ Built for the Meta x Hugging Face OpenEnv Hackathon.
 
 - Real-world utility: production incident triage (not a toy domain).
 - OpenEnv spec: typed action/observation/reward models, reset/step/state loop, `openenv.yaml`.
-- 3 graded tasks: easy/medium/hard with deterministic scoring in [0.0, 1.0].
+- 3 graded tasks: easy/medium/hard with deterministic scoring in (0.0, 1.0).
 - Reward shaping: dense partial-progress signals + penalties.
 - Baseline script: root `inference.py` with reproducible task scores.
 - Deployment: Hugging Face Space-ready + working `Dockerfile`.

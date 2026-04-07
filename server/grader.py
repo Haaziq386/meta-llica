@@ -1,6 +1,6 @@
 """Deterministic episode grader for IncidentEnv.
 
-The grader converts final episode state into a normalized score in [0.0, 1.0].
+The grader converts final episode state into a normalized score in (0.0, 1.0).
 Unlike step rewards (used for learning), this score is used for evaluation and
 leaderboard comparisons.
 """
@@ -10,6 +10,9 @@ from __future__ import annotations
 from models import IncidentState
 from scenarios.base import Scenario
 from server.reward import grade_diagnosis
+
+
+SCORE_EPSILON = 1e-6
 
 
 def grade_episode(
@@ -82,7 +85,8 @@ def grade_episode(
         + no_collateral_component,
         4,
     )
-    score = max(0.0, min(1.0, score))  # Clamp to [0, 1]
+    # Submission validator requires strict open interval: 0 < score < 1.
+    score = max(SCORE_EPSILON, min(1.0 - SCORE_EPSILON, score))
 
     # Breakdown for API/tests (maintains backward compatibility)
     breakdown = {

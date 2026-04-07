@@ -198,7 +198,7 @@ class IncidentState(BaseModel):
     )
     score: float = Field(
         default=0.0,
-        description="Final grader score for the episode in range [0.0, 1.0].",
+        description="Final grader score for the episode in range (0.0, 1.0).",
     )
     diagnosis: str | None = Field(
         default=None,
