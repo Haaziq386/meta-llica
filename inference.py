@@ -308,9 +308,11 @@ def _llm_action(
 
         except Exception as exc:  # noqa: BLE001
             last_error = exc
-            sleep_seconds = config.request_delay_seconds * (2**attempt)
             if _is_rate_limit_error(exc):
-                sleep_seconds = max(2.0, sleep_seconds)
+                # Groq SDK already retried with its own backoff — don't stack more sleep.
+                sleep_seconds = 2.0
+            else:
+                sleep_seconds = config.request_delay_seconds * (2**attempt)
             logger.warning(
                 "[task=%s step=%s] Groq attempt failed attempt=%s error=%s backoff=%.2fs",
                 task_id,
@@ -396,6 +398,19 @@ def _run_one_task(
                     )
 
             step_resp = http.post("/step", json=action.model_dump(exclude_none=True))
+            if step_resp.status_code == 400:
+                try:
+                    err_body = step_resp.json()
+                    error = err_body.get("detail") or err_body.get("error") or "HTTP 400"
+                except Exception:
+                    error = "HTTP 400"
+                logger.warning(
+                    "[task=%s step=%s] env rejected action command=%s target=%s error=%s — retrying with heuristic",
+                    task_id, step_number, action.command, action.target, error,
+                )
+                action = _heuristic_action(observation, task_id)
+                heuristic_steps += 1
+                step_resp = http.post("/step", json=action.model_dump(exclude_none=True))
             step_resp.raise_for_status()
             observation = step_resp.json()
 
