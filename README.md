@@ -85,7 +85,7 @@ python -m pytest
 Required env vars:
 - `API_BASE_URL`
 - `MODEL_NAME`
-- `HF_TOKEN`
+- `API_KEY`
 
 Run:
 
