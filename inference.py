@@ -398,11 +398,13 @@ def _run_one_task(
     log_start(task=task_id, env=BENCHMARK, model=config.model)
 
     try:
-        for _ in range(max_steps):
+        for display_step in range(1, max_steps + 1):
             if observation.get("done", False):
                 break
 
-            step_number = int(observation.get("step_number", 0)) + 1
+            # Use a local monotonic counter for logs; env-reported step_number can
+            # occasionally reset/regress after backend session hiccups.
+            step_number = display_step
 
             if client is None:
                 action = _heuristic_action(observation, task_id)
@@ -486,10 +488,10 @@ def _run_one_task(
             done = bool(observation.get("done", False))
             error = observation.get("error") or observation.get("last_action_error") or None
             rewards.append(step_reward)
-            steps_taken = step_number
+            steps_taken = display_step
 
             action_str = f"{action.command}({action.target})"
-            log_step(step=step_number, action=action_str, reward=step_reward, done=done, error=error)
+            log_step(step=display_step, action=action_str, reward=step_reward, done=done, error=error)
 
             logger.info(
                 "[task=%s step=%s] env reward=%.4f done=%s",
@@ -619,21 +621,21 @@ def run_baseline(
 
 
 def _print_summary(result: dict[str, Any]) -> None:
-    print("\nIncidentEnv Baseline Results", file=sys.stderr)
-    print("=" * 60, file=sys.stderr)
+    logger.info("IncidentEnv Baseline Results")
+    logger.info("%s", "=" * 60)
     for item in result.get("scores", []):
-        print(
+        logger.info(
+            "%s",
             f"{item['task_id']:<28} score={item['score']:<5} "
             f"steps={item.get('steps_taken', 'n/a'):<3} mode={item.get('mode', 'n/a')} "
             f"llm_steps={item.get('llm_steps', 'n/a'):<3} "
             f"heuristic_steps={item.get('heuristic_steps', 'n/a')}",
-            file=sys.stderr,
         )
     if "average_score" in result:
-        print("-" * 60, file=sys.stderr)
-        print(f"average_score={result['average_score']}", file=sys.stderr)
+        logger.info("%s", "-" * 60)
+        logger.info("average_score=%s", result["average_score"])
     if result.get("note"):
-        print(f"note: {result['note']}", file=sys.stderr)
+        logger.info("note: %s", result["note"])
 
 
 if __name__ == "__main__":
