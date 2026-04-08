@@ -18,3 +18,4 @@ dist/
 
 # Environment variables
 .env
+inference.log
